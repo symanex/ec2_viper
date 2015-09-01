@@ -3,6 +3,7 @@
 import boto.ec2
 import datetime
 import optparse
+import os
 
 print """
               ________         .__                     
@@ -18,7 +19,7 @@ regions = [ region.name for region in boto.ec2.get_regions('ec2') ]
 
 print "[+] parsing command line arguments"
 parser = optparse.OptionParser()
-parser.add_option('--region', dest='region', default='us-east-1', choices=regions, help="EC2 region to connect to")
+parser.add_option('--region', dest='region', default=os.getenv('AWS_DEFAULT_REGION','us-east-1'), choices=regions, help="EC2 region to connect to")
 parser.add_option('--qualifier', dest='qualifier', default='Name', help="termination qualifier (default: Name)")
 parser.add_option('--gracetime', dest='gracetime', default='30', type='int', help="grace time in minutes (default: 30)")
 parser.add_option('--armed', action='store_true', dest='armed', default=False)
