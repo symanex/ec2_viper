@@ -1,0 +1,48 @@
+#!/usr/bin/env python
+
+import boto.ec2
+import datetime
+import optparse
+
+print """
+              ________         .__                     
+  ____   ____ \_____  \  ___  _|__|_____   ___________ 
+_/ __ \_/ ___\ /  ____/  \  \/ /  \____ \_/ __ \_  __ \\
+\  ___/\  \___/       \   \   /|  |  |_> >  ___/|  | \/
+ \___  >\___  >_______ \   \_/ |__|   __/ \___  >__|   
+     \/     \/        \/          |__|        \/       
+"""
+
+print "[+] retrieving region list"
+regions = [ region.name for region in boto.ec2.get_regions('ec2') ]
+
+print "[+] parsing command line arguments"
+parser = optparse.OptionParser()
+parser.add_option('--region', dest='region', default='us-east-1', choices=regions, help="EC2 region to connect to")
+parser.add_option('--qualifier', dest='qualifier', default='Name', help="termination qualifier (default: Name)")
+parser.add_option('--gracetime', dest='gracetime', default='30', type='int', help="grace time in minutes (default: 30)")
+parser.add_option('--armed', action='store_true', dest='armed', default=False)
+options, args = parser.parse_args()
+
+print "--> searching for EC2 instances in region %s that are running for at least %s minutes and have no %s tag" % (options.region, options.gracetime, options.qualifier)
+
+print "[+] connecting to region %s" % options.region
+conn = boto.ec2.connect_to_region(options.region)
+
+print "[+] retrieving instances"
+instances = conn.get_only_instances(filters={'instance-state-name':'running'})
+
+print "[+] scanning instances"
+terminated_instance_count = 0
+for instance in instances:
+  if not options.qualifier in instance.tags or instance.tags[options.qualifier] == '':
+    dt = datetime.datetime.strptime(instance.launch_time,"%Y-%m-%dT%H:%M:%S.000Z")
+    running_minutes = ((dt.utcnow() - dt).seconds / options.gracetime)
+    print "{>} instance %s is running for %s minutes and has no %s tag" % (instance.id, running_minutes, options.qualifier)
+    if running_minutes >= options.gracetime and options.armed:
+      print "--> terminating instance %s" % instance.id
+      instance.terminate()
+      terminated_instance_count += 1
+print "--> %s instances terminated" % terminated_instance_count
+
+print "[+] done"
