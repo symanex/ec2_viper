@@ -1,0 +1,47 @@
+#!/usr/bin/env python
+
+import boto.ec2
+import datetime
+import optparse
+import os
+
+print """
+              ________             __              .__  __                
+  ____   ____ \_____  \           |__|____    ____ |__|/  |_  ___________ 
+_/ __ \_/ ___\ /  ____/           |  \__  \  /    \|  \   __\/  _ \_  __ \\
+\  ___/\  \___/       \           |  |/ __ \|   |  \  ||  | (  <_> )  | \/
+ \___  >\___  >_______ \______/\__|  (____  /___|  /__||__|  \____/|__|   
+     \/     \/        \/_____/\______|    \/     \/                       
+"""
+
+print "[+] retrieving region list"
+regions = [ region.name for region in boto.ec2.get_regions('ec2') ]
+
+print "[+] parsing command line arguments"
+parser = optparse.OptionParser()
+parser.add_option('--region', dest='region', default=os.getenv('AWS_DEFAULT_REGION','us-east-1'), choices=regions, help="EC2 region to connect to")
+parser.add_option('--tag', dest='tag', default='DeleteMe', help="tag used as delete flag (default: DeleteMe)")
+parser.add_option('--value', dest='value', default='now', help="value tag has to have (default: now)")
+parser.add_option('--armed', action='store_true', dest='armed', default=False)
+options, args = parser.parse_args()
+
+print "--> searching for EC2 instances in region %s that are tagged with %s=%s" % (options.region, options.tag, options.value)
+
+print "[+] connecting to region %s" % options.region
+conn = boto.ec2.connect_to_region(options.region)
+
+print "[+] retrieving instances"
+instances = conn.get_only_instances(filters={'instance-state-name':'running','tag:'+options.tag:options.value})
+
+print "[+] scanning instances"
+terminated_instance_count = 0
+for instance in instances:
+  if options.tag in instance.tags:
+    print "{>} instance %s is flagged for deletion by tag %s=%s" % (instance.id, options.tag, options.value)
+    if options.armed:
+      print "--> terminating instance %s" % instance.id
+      instance.terminate()
+      terminated_instance_count += 1
+print "--> %s instances terminated" % terminated_instance_count
+
+print "[+] done"
