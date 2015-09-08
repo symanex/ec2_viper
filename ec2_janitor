@@ -14,34 +14,47 @@ _/ __ \_/ ___\ /  ____/           |  \__  \  /    \|  \   __\/  _ \_  __ \\
      \/     \/        \/_____/\______|    \/     \/                       
 """
 
-print "[+] retrieving region list"
+print "[.] retrieving region list"
 regions = [ region.name for region in boto.ec2.get_regions('ec2') ]
 
-print "[+] parsing command line arguments"
+print "[.] parsing command line arguments"
 parser = optparse.OptionParser()
-parser.add_option('--region', dest='region', default=os.getenv('AWS_DEFAULT_REGION','us-east-1'), choices=regions, help="EC2 region to connect to")
+parser.add_option('--region', dest='region', default=False, choices=regions, help="EC2 region to scan (default: all)")
 parser.add_option('--tag', dest='tag', default='DeleteMe', help="tag used as delete flag (default: DeleteMe)")
 parser.add_option('--value', dest='value', default='now', help="value tag has to have (default: now)")
 parser.add_option('--armed', action='store_true', dest='armed', default=False)
 options, args = parser.parse_args()
 
-print "--> searching for EC2 instances in region %s that are tagged with %s=%s" % (options.region, options.tag, options.value)
+regions_to_scan = []
 
-print "[+] connecting to region %s" % options.region
-conn = boto.ec2.connect_to_region(options.region)
+if options.region:
+  regions_to_scan = [ options.region ]
+else:
+  regions_to_scan = regions
 
-print "[+] retrieving instances"
-instances = conn.get_only_instances(filters={'instance-state-name':'running','tag:'+options.tag:options.value})
-
-print "[+] scanning instances"
 terminated_instance_count = 0
-for instance in instances:
-  if options.tag in instance.tags:
-    print "{>} instance %s is flagged for deletion by tag %s=%s" % (instance.id, options.tag, options.value)
-    if options.armed:
-      print "--> terminating instance %s" % instance.id
-      instance.terminate()
-      terminated_instance_count += 1
-print "--> %s instances terminated" % terminated_instance_count
 
-print "[+] done"
+for region_to_scan in regions_to_scan:
+
+  try:
+
+    print "[.] connecting to region %s" % region_to_scan
+    conn = boto.ec2.connect_to_region(region_to_scan)
+
+    print "[.] retrieving instances in %s" % region_to_scan
+    instances = conn.get_only_instances(filters={'instance-state-name':'running'})
+
+    print "[.] scanning instances in %s for '%s' tag set to '%s'" % (region_to_scan, options.tag, options.value)
+    for instance in instances:
+      if options.tag in instance.tags:
+        print "{>} instance %s in %s is flagged for deletion by tag %s=%s" % (instance.id, region_to_scan, options.tag, options.value)
+        if options.armed:
+          print "--> terminating instance %s" % instance.id
+          instance.terminate()
+          terminated_instance_count += 1
+
+  except Exception as e:
+
+    print "[!] %s" % e.message
+
+print "DONE: %s instances terminated" % terminated_instance_count

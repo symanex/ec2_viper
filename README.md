@@ -5,8 +5,8 @@ certain tag_ that are running longer than a defined grace time. It can be used
 to clean up EC2 instances that are missing mandatory tags on a regular basis.
 
 The default behaviour for `ec2_viper` is to search for all EC2 instances in
-the default region (`AWS_DEFAULT_REGION` if set, otherwise `us-east-1`) that are
-running for longer than 30 minutes and have no `Name` tag set.
+all regions that are running for longer than 30 minutes and have no `Name` tag
+set.
 
 `ec2_viper` will not terminate any instances until the `--armed` option was
 explicitly set.
@@ -40,8 +40,7 @@ flagged by a specific tag=value_. This is especially useful to flag instances
 for deletion and delete them asynchronously.
 
 The default behaviour of `ec2_janitor` is to search for all EC2 instances in
-the default region (`AWS_DEFAULT_REGION` if set, otherwise `us-east-1`) that
-have a tag `DeleteMe` set to `now`.
+all regions that have a tag `DeleteMe` set to `now`.
 
 `ec2_janitor` will not terminate any instances until the `--armed` option was
 explicitly set.

@@ -14,36 +14,49 @@ _/ __ \_/ ___\ /  ____/  \  \/ /  \____ \_/ __ \_  __ \\
      \/     \/        \/          |__|        \/       
 """
 
-print "[+] retrieving region list"
+print "[.] retrieving region list"
 regions = [ region.name for region in boto.ec2.get_regions('ec2') ]
 
-print "[+] parsing command line arguments"
+print "[.] parsing command line arguments"
 parser = optparse.OptionParser()
-parser.add_option('--region', dest='region', default=os.getenv('AWS_DEFAULT_REGION','us-east-1'), choices=regions, help="EC2 region to connect to")
+parser.add_option('--region', dest='region', default=False, choices=regions, help="EC2 region to scan (default: all)")
 parser.add_option('--qualifier', dest='qualifier', default='Name', help="termination qualifier (default: Name)")
 parser.add_option('--gracetime', dest='gracetime', default='30', type='int', help="grace time in minutes (default: 30)")
 parser.add_option('--armed', action='store_true', dest='armed', default=False)
 options, args = parser.parse_args()
 
-print "--> searching for EC2 instances in region %s that are running for at least %s minutes and have no %s tag" % (options.region, options.gracetime, options.qualifier)
+regions_to_scan = []
 
-print "[+] connecting to region %s" % options.region
-conn = boto.ec2.connect_to_region(options.region)
+if options.region:
+  regions_to_scan = [ options.region ]
+else:
+  regions_to_scan = regions
 
-print "[+] retrieving instances"
-instances = conn.get_only_instances(filters={'instance-state-name':'running'})
-
-print "[+] scanning instances"
 terminated_instance_count = 0
-for instance in instances:
-  if not options.qualifier in instance.tags or instance.tags[options.qualifier] == '':
-    dt = datetime.datetime.strptime(instance.launch_time,"%Y-%m-%dT%H:%M:%S.000Z")
-    running_minutes = ((dt.utcnow() - dt).seconds / options.gracetime)
-    print "{>} instance %s is running for %s minutes and has no %s tag" % (instance.id, running_minutes, options.qualifier)
-    if running_minutes >= options.gracetime and options.armed:
-      print "--> terminating instance %s" % instance.id
-      instance.terminate()
-      terminated_instance_count += 1
-print "--> %s instances terminated" % terminated_instance_count
 
-print "[+] done"
+for region_to_scan in regions_to_scan:
+
+  try:
+
+    print "[.] connecting to region %s" % region_to_scan
+    conn = boto.ec2.connect_to_region(region_to_scan)
+
+    print "[.] retrieving instances in %s" % region_to_scan
+    instances = conn.get_only_instances(filters={'instance-state-name':'running'})
+
+    print "[.] scanning instances in %s for missing '%s' tag" % (region_to_scan, options.qualifier)
+    for instance in instances:
+      if not options.qualifier in instance.tags or instance.tags[options.qualifier] == '':
+        dt = datetime.datetime.strptime(instance.launch_time,"%Y-%m-%dT%H:%M:%S.000Z")
+        running_minutes = ((dt.utcnow() - dt).seconds / options.gracetime)
+        print "{>} instance %s in %s is running for %s minutes and has no '%s' tag" % (instance.id, region_to_scan, running_minutes, options.qualifier)
+        if running_minutes >= options.gracetime and options.armed:
+          print "--> terminating instance %s" % instance.id
+          instance.terminate()
+          terminated_instance_count += 1
+
+  except Exception as e:
+
+    print "[!] %s" % e.message
+
+print "DONE: %s instances terminated" % terminated_instance_count
