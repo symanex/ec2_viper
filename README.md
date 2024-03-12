@@ -14,7 +14,7 @@ explicitly set.
 ## Examples
 
 Search for EC2 instances that are missing a 'Name' tag and are running for at
-least 15 minutes (dry run):
+least 30 minutes (dry run):
 
 ``ec2_viper``
 
@@ -23,21 +23,21 @@ least 30 minutes:
 
 ``ec2_viper --armed``
 
-Terminate all EC2 instances that are missing an 'Environment' tag an are runnung
+Terminate all EC2 instances that are missing a 'Environment' tag and are running
 for at least 15 minutes:
 
-``ec2_viper --qualifier Environment --gracetime 15 --armed``
+``ec2_viper --armed --qualifier Environment --gracetime 15``
 
-Terminate all EC2 instances in the `eu-west-1` region that are running for at
+Terminate all EC2 instances in the `eu-west-1` region only, that are running for at
 least 5 minutes and have no `Status` tag set:
 
-``ec2_viper --qualifier Status --gracetime 5 --region eu-west-1 --armed``
+``ec2_viper --armed --qualifier Status --gracetime 5 --region eu-west-1``
 
 # ec2_janitor
 
 **ec2_janitor** is a small tool to _find and terminate EC2 instances that are
 flagged by a specific tag=value_. This is especially useful to flag instances
-for deletion and delete them asynchronously.
+for deletion by some other tool or process and then asynchronously delete them.
 
 The default behaviour of `ec2_janitor` is to search for all EC2 instances in
 all regions that have a tag `DeleteMe` set to `now`.
@@ -55,11 +55,11 @@ Terminate all EC2 instances that have a tag 'DeleteMe' set to 'now':
 
 ``ec2_janitor --armed``
 
-Terminate all EC2 instances that a tag 'terminate-me' set to 'true':
+Terminate all EC2 instances that have a tag 'terminate-me' set to 'true':
 
-``ec2_janitor --tag terminate-me --value true --armed``
+``ec2_janitor --armed --tag terminate-me --value true``
 
-Terminate all EC2 instances in the `eu-west-1` region that have a tag
+Terminate all EC2 instances in the `eu-west-1` region only, that have a tag
 'DeleteMe' set to 'now':
 
-``ec2_janitor --region eu-west-1 --armed``
+``ec2_janitor --armed --region eu-west-1``
